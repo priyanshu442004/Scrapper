@@ -52,7 +52,7 @@ async def get_similar_cases(payload: SimilarCasesRequest):
     all_related = []
     
     try:
-        session = build_session(force_requests=True)
+        session = build_session(force_requests=False)
         print("[info] Scrape mode (requests)")
         
         all_results = []
@@ -148,7 +148,7 @@ async def get_detailed_case(payload: DetailedCaseRequest):
     if not docid:
         raise HTTPException(status_code=400, detail="Could not extract docid from the provided link")
         
-    session = build_session(force_requests=True)
+    session = build_session(force_requests=False)
     try:
         doc = fetch_document(session, docid, None)
     except Exception as e:
