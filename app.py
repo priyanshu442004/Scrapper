@@ -1,3 +1,4 @@
+import os
 import re
 import io
 import sys
@@ -7,6 +8,7 @@ from typing import List, Optional
 from scraper import (
     build_session,
     search_page_scrape,
+    search_page_api,
     enrich_with_full_text,
     rank_by_similarity,
     print_results,
@@ -50,11 +52,16 @@ async def get_similar_cases(payload: SimilarCasesRequest):
     
     ranked = []
     all_related = []
+    api_token = os.environ.get("INDIANKANOON_API_TOKEN", "").strip() or None
+    using_api = bool(api_token)
     
     try:
         session = build_session(force_requests=False)
-        engine = "cloudscraper" if "CloudScraper" in type(session).__name__ else "requests"
-        print(f"[info] Scrape mode ({engine})")
+        if using_api:
+            print("[info] API mode (api.indiankanoon.org)")
+        else:
+            engine = "cloudscraper" if "CloudScraper" in type(session).__name__ else "requests"
+            print(f"[info] Scrape mode ({engine})")
         
         all_results = []
         seen_docids = set()
@@ -68,7 +75,11 @@ async def get_similar_cases(payload: SimilarCasesRequest):
             print(f"[info] query={query!r}  topic=none  pages=0..0")
             
             try:
-                page_results, page_related = search_page_scrape(session, query, 0)
+                if using_api:
+                    page_results, page_related = search_page_api(session, query, 0, api_token)
+                else:
+                    page_results, page_related = search_page_scrape(session, query, 0)
+                    
                 if page_results is None:
                     print("[warn] page 0: request failed")
                     continue
@@ -101,7 +112,7 @@ async def get_similar_cases(payload: SimilarCasesRequest):
         # 2. Fetch full text (up to 20 results by default)
         to_fetch = all_results[:20]
         try:
-            enrich_with_full_text(session, to_fetch, False, None, 0, 1.0)
+            enrich_with_full_text(session, to_fetch, using_api, api_token, 0, 1.0)
         except Exception as e:
             print(f"[warn] Failed to enrich results with full text: {e}")
             
@@ -149,9 +160,10 @@ async def get_detailed_case(payload: DetailedCaseRequest):
     if not docid:
         raise HTTPException(status_code=400, detail="Could not extract docid from the provided link")
         
+    api_token = os.environ.get("INDIANKANOON_API_TOKEN", "").strip() or None
     session = build_session(force_requests=False)
     try:
-        doc = fetch_document(session, docid, None)
+        doc = fetch_document(session, docid, api_token)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch document from Indian Kanoon: {str(e)}")
         
