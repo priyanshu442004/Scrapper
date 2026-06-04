@@ -53,7 +53,8 @@ async def get_similar_cases(payload: SimilarCasesRequest):
     
     try:
         session = build_session(force_requests=False)
-        print("[info] Scrape mode (requests)")
+        engine = "cloudscraper" if "CloudScraper" in type(session).__name__ else "requests"
+        print(f"[info] Scrape mode ({engine})")
         
         all_results = []
         seen_docids = set()
